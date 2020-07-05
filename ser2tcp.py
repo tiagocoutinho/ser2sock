@@ -48,27 +48,29 @@ class Bridge:
     def ensure_serial(self):
         if self.serial is None:
             self.serial = create_serial(**self.config['serial'])
-            self.listener[self.serial] = self
+            self.listener[self.serial] = self.serial_to_tcp
         return self.serial
 
     def ensure_server(self):
         if self.server is None:
             self.server = create_server(**self.config['tcp'])
-            self.listener[self.server] = self
+            self.listener[self.server] = self.accept
         return self.server
 
     def close_client(self):
         if self.client:
             self.listener.pop(self.client)
+            self.client.close()
             self.client = None
 
     def close_serial(self):
         if self.serial:
             self.listener.pop(self.serial)
+            self.serial.close()
             self.serial = None
 
-    def tcp_to_serial(self):
-        data = self.client.recv(1024)
+    def tcp_to_serial(self, client):
+        data = client.recv(1024)
         if data:
             logging.debug('tcp -> serial: %r', data)
             serial = self.ensure_serial()
@@ -78,8 +80,8 @@ class Bridge:
             self.close_client()
             self.close_serial()
 
-    def serial_to_tcp(self):
-        data = self.serial.read(self.serial.inWaiting())
+    def serial_to_tcp(self, serial):
+        data = serial.read(serial.inWaiting())
         if self.client is None:
             logging.info('serial data discarded (no client): %r', data)
         else:
@@ -91,23 +93,15 @@ class Bridge:
         self.close_serial()
         self.server.close()
 
-    def accept(self):
-        client, addr = self.server.accept()
+    def accept(self, server):
+        client, addr = server.accept()
         if self.client is None:
             logging.info('new connection from %r', addr)
             self.client = client
-            self.listener[client] = self
+            self.listener[client] = self.tcp_to_serial
         else:
             logging.info('disconnect client %r (already connected)', addr)
             client.close()
-
-    def on_event(self, source):
-        if source is self.server:
-            return self.accept()
-        elif source is self.client:
-            return self.tcp_to_serial()
-        elif source is self.serial:
-            return self.serial_to_tcp()
 
 
 def create_bridges(bridges, listener):
@@ -124,11 +118,11 @@ class Server:
 
     def __init__(self, config):
         self.config = config
+        self.listener = {}
 
     def __enter__(self):
         logging.info('Bootstraping bridges...')
 
-        self.listener = {}
         self.bridges = list(create_bridges(self.config['bridges'], self.listener))
         logging.info('Ready to accept requests!')
         return self
@@ -137,23 +131,34 @@ class Server:
         for bridge in self.bridges:
             bridge.close()
 
-    def run(self):
-        while True:
+    def add_reader(self, reader, cb):
+        self.listener[reader] = cb
+
+    def remove_reader(self, reader):
+        return self.listener.pop(reader)
+
+    def step(self):
             readers, _, _ = select.select(self.listener, (), ())
             for reader in readers:
-                bridge = self.listener[reader]
-                bridge.on_event(reader)
+                handler = self.listener[reader]
+                handler(reader)
+
+    def run(self):
+        while True:
+            self.step()
+
+
+def tcp(**kwargs):
+    kwargs['__kind__'] = 'tcp'
+    return kwargs
+
+
+def serial(**kwargs):
+    kwargs['__kind__'] = 'serial'
+    return kwargs
 
 
 def load_config(filename):
-
-    def tcp(**kwargs):
-        kwargs['__kind__'] = 'tcp'
-        return kwargs
-
-    def serial(**kwargs):
-        kwargs['__kind__'] = 'serial'
-        return kwargs
 
     glob = dict(serial=serial, tcp=tcp)
 
