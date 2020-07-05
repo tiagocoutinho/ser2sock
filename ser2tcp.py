@@ -7,6 +7,7 @@ import logging
 import optparse
 import contextlib
 
+__version__ = "0.1.0"
 
 IPTOS_NORMAL = 0x0
 IPTOS_LOWDELAY = 0x10

@@ -45,6 +45,11 @@ setup(
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
+    entry_points={
+        'console_scripts': [
+            'ser2tcp = ser2tcp:main',
+        ],
+    },
     url="https://github.com/tiagooutinho/ser2tcp/",
     project_urls={
         "Documentation": "https://tiagocoutinho.github.io/ser2tcp/",
