@@ -55,7 +55,7 @@ setup(
         "Documentation": "https://tiagocoutinho.github.io/ser2tcp/",
         "Source": "https://github.com/tiagocoutinho/ser2tcp/",
     },
-    version="0.1.0",
+    version="1.0.0",
     python_requires=">=2.6",
     zip_safe=True
 )
