@@ -60,8 +60,27 @@ Here is the equivalent above config using helpers:
 bridges = [
     [serial(address="/dev/ttyS0"), tcp(address=("0", 18500))],
     [serial(address="/dev/ttyS1", baudrate=19200),
-     tcp(address=("0", 18501, no_delay=False))],
+     tcp(address=("0", 18501), no_delay=False)],
 ]
+```
+
+You are free to put any code in your python configuration file.
+Here is an example setting up logging:
+
+```python
+import logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
+
+bridges = [
+    [serial(address="/dev/ttyS0"), tcp(address=("0", 18500))],
+    [serial(address="/dev/ttyS1", baudrate=19200),
+     tcp(address=("0", 18501), no_delay=False)],
+]
+
+
 ```
 
 [pypi]: https://img.shields.io/pypi/pyversions/ser2tcp.svg
