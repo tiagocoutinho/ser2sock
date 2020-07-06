@@ -126,22 +126,22 @@ def test_one_bridge():
         ])
 
         server = Server(config)
-        assert not server.listener
+        assert not server._listener
         finished = [False]
 
         with server:
             # internal channel, tcp
-            assert len(server.listener) == 2
+            assert len(server._listener) == 2
             hardware.register(server)
-            assert hardware.master in server.listener
+            assert hardware.master in server._listener
             # internal channel, tcp, master
-            assert len(server.listener) == 3
+            assert len(server._listener) == 3
             host, port = server.bridges[0].sock.getsockname()
             with socket.create_connection(('localhost', port)) as client:
-                assert len(server.listener) == 3
+                assert len(server._listener) == 3
                 server.step()
                 # internal channel, tcp, master, client (server end), serial
-                assert len(server.listener) == 5
+                assert len(server._listener) == 5
 
                 def on_client_received(cl):
                     try:
@@ -151,14 +151,14 @@ def test_one_bridge():
                         finished[0] = True
 
                 server.add_reader(client, on_client_received)
-                assert client in server.listener
+                assert client in server._listener
                 # internal channel, tcp, master, client (server end), serial, client (manual)
-                assert len(server.listener) == 6
+                assert len(server._listener) == 6
                 client.sendall(REQUEST)
-                assert len(server.listener) == 6
+                assert len(server._listener) == 6
                 server.step()
                 # internal channel, tcp, master, client (server end), serial, client (manual)
-                assert len(server.listener) == 6
+                assert len(server._listener) == 6
 
                 while not finished[0]:
                     server.step()
@@ -166,17 +166,17 @@ def test_one_bridge():
                 assert hardware.nb_requests == 1
 
             # internal channel, tcp, master, client (server end), serial, client (manual)
-            assert len(server.listener) == 6
+            assert len(server._listener) == 6
             server.remove_reader(client)
             # internal channel, tcp, master, client (server end), serial
-            assert len(server.listener) == 5
+            assert len(server._listener) == 5
             hardware.unregister(server)
             # internal channel, tcp, client (server end), serial
-            assert len(server.listener) == 4
+            assert len(server._listener) == 4
             server.step()
             # internal channel, tcp
-            assert len(server.listener) == 2
-        assert not len(server.listener)
+            assert len(server._listener) == 2
+        assert not server._listener
 
 
 def test_server(server):
@@ -196,13 +196,16 @@ def test_server_no_serial(server_no_hw):
     assert error.value.errno == errno.ECONNRESET
 
 
-def test_server_serial_close(server):
+def test_server_serial_close_after_success(server):
     _, port = server.bridges[0].sock.getsockname()
-    with socket.create_connection(('localhost', port)) as client:
-        server.hardware.close()
-        client.sendall(b"*IDN?\n")
-        data = client.recv(1024)
-        assert not data
+    with pytest.raises(ConnectionResetError) as error:
+        with socket.create_connection(('localhost', port)) as client:
+            client.sendall(REQUEST)
+            assert client.recv(1024) == REPLY
+            assert server.hardware.nb_requests == 1
+            server.hardware.close()
+            client.sendall(b"*IDN?\n")
+            client.recv(1024)
 
 
 def test_server_no_client(server):

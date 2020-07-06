@@ -168,6 +168,7 @@ class Server:
         for bridge in self.bridges:
             bridge.close()
         self._close_self_channel()
+        self.selector.close()
 
     def _make_bridges(self):
         self.bridges = [
@@ -214,7 +215,7 @@ class Server:
             self._csock.sendall(self.shutdown_message)
 
     @property
-    def listener(self):
+    def _listener(self):
         return self.selector.get_map()
 
 
