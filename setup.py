@@ -61,7 +61,7 @@ setup(
         "Documentation": "https://tiagocoutinho.github.io/ser2sock/",
         "Source": "https://github.com/tiagocoutinho/ser2sock/",
     },
-    version="2.0.0",
+    version="3.0.0",
     python_requires=">=2.6",
     zip_safe=True
 )

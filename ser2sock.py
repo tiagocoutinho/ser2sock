@@ -14,7 +14,7 @@ if PY2:
 else:
     import selectors
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 IPTOS_NORMAL = 0x0
 IPTOS_LOWDELAY = 0x10
