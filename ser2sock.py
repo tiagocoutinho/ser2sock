@@ -7,6 +7,13 @@ import logging
 import optparse
 import contextlib
 
+PY2 = sys.version_info[0] == 2
+
+if PY2:
+    import selectors2 as selectors
+else:
+    import selectors
+
 __version__ = "2.0.0"
 
 IPTOS_NORMAL = 0x0
@@ -26,6 +33,7 @@ def create_server(
         server.setsockopt(socket.SOL_IP, socket.IP_TOS, tos)
     server.bind(address)
     server.listen(listen)
+    server.setblocking(False)
     return server
 
 
@@ -37,10 +45,10 @@ def create_serial(address, **kwargs):
 
 class Bridge:
 
-    def __init__(self, config, listener):
+    def __init__(self, config, server):
         self.config = config
-        self.listener = listener
-        self.server = None
+        self.server = server
+        self.sock = None
         self.client = None
         self.serial = None
         self.ensure_server()
@@ -48,32 +56,32 @@ class Bridge:
     def ensure_serial(self):
         if self.serial is None:
             self.serial = create_serial(**self.config['serial'])
-            self.listener[self.serial] = self.serial_to_tcp
+            self.server.add_reader(self.serial, self.serial_to_tcp)
         return self.serial
 
     def ensure_server(self):
-        if self.server is None:
-            self.server = create_server(**self.config['tcp'])
-            self.listener[self.server] = self.accept
-        return self.server
+        if self.sock is None:
+            self.sock = create_server(**self.config['tcp'])
+            self.server.add_reader(self.sock, self.accept)
+        return self.sock
 
     def close_client(self):
         if self.client:
-            self.listener.pop(self.client)
+            self.server.remove_reader(self.client)
             self.client.close()
             self.client = None
 
     def close_serial(self):
         if self.serial:
-            self.listener.pop(self.serial)
+            self.server.remove_reader(self.serial)
             self.serial.close()
             self.serial = None
 
     def close_server(self):
-        if self.server:
-            self.listener.pop(self.server)
-            self.server.close()
-            self.server = None
+        if self.sock:
+            self.server.remove_reader(self.sock)
+            self.sock.close()
+            self.sock = None
 
     def tcp_to_serial(self, client):
         data = client.recv(1024)
@@ -99,39 +107,40 @@ class Bridge:
         self.close_serial()
         self.close_server()
 
-    def accept(self, server):
-        client, addr = server.accept()
+    def accept(self, sock):
+        client, addr = sock.accept()
         if self.client is None:
             logging.info('new connection from %r', addr)
             self.client = client
-            self.listener[client] = self.tcp_to_serial
+            self.client.setblocking(False)
+            self.server.add_reader(client, self.tcp_to_serial)
         else:
             logging.info('disconnect client %r (already connected)', addr)
             client.close()
 
 
-def create_bridges(bridges, listener):
-    for config in bridges:
-        if isinstance(config, (tuple, list)):
-            a, b = config
-            serial, tcp = (a, b) if a.pop('__kind__') == 'serial' else (b, a)
-            b.pop('__kind__')
-            config = dict(serial=serial, tcp=tcp)
-        yield Bridge(config, listener)
+def make_bridge(config, server):
+    if isinstance(config, (tuple, list)):
+        a, b = config
+        serial, tcp = (a, b) if a.pop('__kind__') == 'serial' else (b, a)
+        b.pop('__kind__')
+        config = dict(serial=serial, tcp=tcp)
+    return Bridge(config, server)
 
 
 class Server:
 
+    trigger_message = b'trigger'
     shutdown_message = b'shutdown'
 
     def __init__(self, config):
         self.config = config
-        self.listener = {}
+        self.selector = selectors.DefaultSelector()
 
     def __enter__(self):
         logging.info('Bootstraping bridges...')
         self._make_self_channel()
-        self.bridges = list(create_bridges(self.config['bridges'], self.listener))
+        self._make_bridges()
         self.run_flag = True
         logging.info('Ready to accept requests!')
         return self
@@ -140,6 +149,12 @@ class Server:
         for bridge in self.bridges:
             bridge.close()
         self._close_self_channel()
+
+    def _make_bridges(self):
+        self.bridges = [
+            make_bridge(config, self)
+            for config in self.config['bridges']
+        ]
 
     def _make_self_channel(self):
         self._ssock, self._csock = socket.socketpair()
@@ -154,22 +169,27 @@ class Server:
         self._csock.close()
         self._csock = None
 
+    def _trigger(self):
+        self._ssock.sendall(b'trigger')
+
     def _on_internal_event(self, fd):
         data = fd.recv(4096)
         if data == self.shutdown_message:
             self.run_flag = False
+        elif data == self.trigger_message:
+            pass
 
     def add_reader(self, reader, cb):
-        self.listener[reader] = cb
+        self.selector.register(reader, selectors.EVENT_READ, cb)
 
     def remove_reader(self, reader):
-        return self.listener.pop(reader)
+        self.selector.unregister(reader)
 
     def step(self):
-            readers, _, _ = select.select(self.listener, (), ())
-            for reader in readers:
-                handler = self.listener[reader]
-                handler(reader)
+        events = self.selector.select()
+        for key, mask in events:
+            handler, reader = key.data, key.fileobj
+            handler(reader)
 
     def run(self):
         while self.run_flag:
@@ -177,6 +197,10 @@ class Server:
 
     def stop(self):
         self._csock.sendall(self.shutdown_message)
+
+    @property
+    def listener(self):
+        return self.selector.get_map()
 
 
 def tcp(**kwargs):

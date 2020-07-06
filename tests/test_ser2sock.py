@@ -68,7 +68,7 @@ def test_one_bridge():
             assert hardware.master in server.listener
             # internal channel, tcp, master
             assert len(server.listener) == 3
-            host, port = server.bridges[0].server.getsockname()
+            host, port = server.bridges[0].sock.getsockname()
             with socket.create_connection(('localhost', port)) as client:
                 assert len(server.listener) == 3
                 server.step()
