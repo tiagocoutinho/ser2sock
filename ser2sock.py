@@ -29,7 +29,7 @@ def create_server(
     return server
 
 
-def create_serial(address='/tmp/dcp3000-1', **kwargs):
+def create_serial(address, **kwargs):
     import serial
     ser = getattr(serial, 'serial_for_url', serial.Serial)
     return ser(address, **kwargs)
