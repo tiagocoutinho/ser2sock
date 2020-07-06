@@ -208,9 +208,7 @@ def serial(**kwargs):
 
 
 def load_config(filename):
-
     glob = dict(serial=serial, tcp=tcp)
-
     full = os.path.abspath(filename)
     path, fname = os.path.split(filename)
     mod_name, _ = os.path.splitext(fname)
@@ -222,20 +220,29 @@ def load_config(filename):
     return config
 
 
-def main():
-    parser = optparse.OptionParser()
-    parser.add_option('-c', '--config', help='config file name')
-    options, args = parser.parse_args()
-    if options.config is None:
-        print('Missing configuration file argument (-c/--config)')
-        exit(1)
+SERVER = None
+
+
+def run(options):
+    global SERVER
     config = load_config(options.config)
     try:
         with Server(config) as server:
+            SERVER = server
             server.run()
     except KeyboardInterrupt:
         logging.info('Interrupted. Bailing out...')
+    finally:
+        SERVER = None
 
+
+def main(args=None):
+    parser = optparse.OptionParser()
+    parser.add_option('-c', '--config', help='config file name')
+    options, args = parser.parse_args(args)
+    if options.config is None:
+        parser.error('Missing configuration file argument (-c/--config)')
+    run(options)
 
 
 if __name__ == "__main__":
