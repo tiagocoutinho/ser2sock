@@ -10,7 +10,7 @@ import contextlib
 PY2 = sys.version_info[0] == 2
 
 if PY2:
-    import selectors2 as selectors
+    import selectors2 as selectors  # pragma: no cover
 else:
     import selectors
 
@@ -84,18 +84,32 @@ class Bridge:
             self.sock = None
 
     def tcp_to_serial(self, client):
+        try:
+            self._tcp_to_serial(client)
+        except Exception as error:
+            logging.error('error tcp -> serial: %r', error)
+            self.close_serial()
+            self.close_client()
+
+    def _tcp_to_serial(self, client):
         data = client.recv(1024)
         if data:
             logging.debug('tcp -> serial: %r', data)
-            serial = self.ensure_serial()
-            serial.write(data)
+            self.serial.write(data)
         else:
-            logging.info('client disconnected')
-            self.close_client()
-            self.close_serial()
+            raise RuntimeError('Connection closed')
 
     def serial_to_tcp(self, serial):
-        data = serial.read(serial.inWaiting())
+        try:
+            self._serial_to_tcp(serial)
+        except Exception as error:
+            logging.error('error reading from serial %r', error, exc_info=1)
+            self.close_client()
+            self.close_serial()
+            return
+
+    def _serial_to_tcp(self, serial):
+        data = self.serial.read(self.serial.inWaiting())
         if self.client is None:
             logging.info('serial data discarded (no client): %r', data)
         else:
@@ -111,6 +125,12 @@ class Bridge:
         client, addr = sock.accept()
         if self.client is None:
             logging.info('new connection from %r', addr)
+            try:
+                serial = self.ensure_serial()
+            except Exception as error:
+                logging.error('error openning serial port %r', error)
+                client.close()
+                return
             self.client = client
             self.client.setblocking(False)
             self.server.add_reader(client, self.tcp_to_serial)
@@ -190,7 +210,8 @@ class Server:
             self.step()
 
     def stop(self):
-        self._csock.sendall(self.shutdown_message)
+        if self._csock:
+            self._csock.sendall(self.shutdown_message)
 
     @property
     def listener(self):
@@ -230,7 +251,7 @@ def run(options):
         with Server(config) as server:
             SERVER = server
             server.run()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         logging.info('Interrupted. Bailing out...')
     finally:
         SERVER = None
@@ -246,4 +267,4 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover
