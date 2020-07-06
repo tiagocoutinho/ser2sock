@@ -69,6 +69,12 @@ class Bridge:
             self.serial.close()
             self.serial = None
 
+    def close_server(self):
+        if self.server:
+            self.listener.pop(self.server)
+            self.server.close()
+            self.server = None
+
     def tcp_to_serial(self, client):
         data = client.recv(1024)
         if data:
@@ -91,7 +97,7 @@ class Bridge:
     def close(self):
         self.close_client()
         self.close_serial()
-        self.server.close()
+        self.close_server()
 
     def accept(self, server):
         client, addr = server.accept()
@@ -116,20 +122,42 @@ def create_bridges(bridges, listener):
 
 class Server:
 
+    shutdown_message = b'shutdown'
+
     def __init__(self, config):
         self.config = config
         self.listener = {}
 
     def __enter__(self):
         logging.info('Bootstraping bridges...')
-
+        self._make_self_channel()
         self.bridges = list(create_bridges(self.config['bridges'], self.listener))
+        self.run_flag = True
         logging.info('Ready to accept requests!')
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
         for bridge in self.bridges:
             bridge.close()
+        self._close_self_channel()
+
+    def _make_self_channel(self):
+        self._ssock, self._csock = socket.socketpair()
+        self._ssock.setblocking(False)
+        self._csock.setblocking(False)
+        self.add_reader(self._ssock, self._on_internal_event)
+
+    def _close_self_channel(self):
+        self.remove_reader(self._ssock)
+        self._ssock.close()
+        self._ssock = None
+        self._csock.close()
+        self._csock = None
+
+    def _on_internal_event(self, fd):
+        data = fd.recv(4096)
+        if data == self.shutdown_message:
+            self.run_flag = False
 
     def add_reader(self, reader, cb):
         self.listener[reader] = cb
@@ -144,8 +172,11 @@ class Server:
                 handler(reader)
 
     def run(self):
-        while True:
+        while self.run_flag:
             self.step()
+
+    def stop(self):
+        self._csock.sendall(self.shutdown_message)
 
 
 def tcp(**kwargs):
