@@ -11,7 +11,7 @@ TESTING = any(x in sys.argv for x in ["test", "pytest"])
 setup_requirements = []
 if TESTING:
     if sys.version_info < (3, 7):
-        print("testing ser2tcp needs python >= 3.7")
+        print("testing ser2sock needs python >= 3.7")
         exit(1)
     setup_requirements += ["pytest-runner"]
 test_requirements = ["pytest", "pytest-cov", "pytest-asyncio"]
@@ -20,7 +20,7 @@ with open("README.md") as f:
     description = f.read()
 
 setup(
-    name="ser2tcp",
+    name="ser2sock",
     author="Jose Tiago Macara Coutinho",
     author_email="coutinhotiago@gmail.com",
     classifiers=[
@@ -47,13 +47,13 @@ setup(
     tests_require=test_requirements,
     entry_points={
         'console_scripts': [
-            'ser2tcp = ser2tcp:main',
+            'ser2sock = ser2sock:main',
         ],
     },
-    url="https://github.com/tiagooutinho/ser2tcp/",
+    url="https://github.com/tiagooutinho/ser2sock/",
     project_urls={
-        "Documentation": "https://tiagocoutinho.github.io/ser2tcp/",
-        "Source": "https://github.com/tiagocoutinho/ser2tcp/",
+        "Documentation": "https://tiagocoutinho.github.io/ser2sock/",
+        "Source": "https://github.com/tiagocoutinho/ser2sock/",
     },
     version="1.0.3",
     python_requires=">=2.6",

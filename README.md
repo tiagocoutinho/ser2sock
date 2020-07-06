@@ -1,4 +1,4 @@
-# ser2tcp
+# ser2sock
 
 ![Pypi version][pypi]
 
@@ -11,7 +11,7 @@ Can run under python 2.6 up to 3.x (tested 3.8).
 From within your favorite python environment:
 
 ```console
-pip install ser2net
+pip install ser2sock
 ```
 
 ## Usage
@@ -83,4 +83,4 @@ bridges = [
 
 ```
 
-[pypi]: https://img.shields.io/pypi/pyversions/ser2tcp.svg
+[pypi]: https://img.shields.io/pypi/pyversions/ser2sock.svg

@@ -2,7 +2,7 @@ import io
 import os
 import socket
 
-from ser2tcp import Server, serial, tcp, load_config
+from ser2sock import Server, serial, tcp, load_config
 
 
 def test_load_config():
