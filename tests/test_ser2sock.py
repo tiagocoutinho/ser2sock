@@ -47,7 +47,7 @@ class Hardware:
         request = fobj.readline()
         reply = self.commands.get(request)
         if reply:
-            time.sleep(0.1)
+            time.sleep(0.01)
             os.write(self.master_fd, reply)
 
     def register(self, server):
@@ -212,7 +212,7 @@ def test_server_no_client(server):
     _, port = server.bridges[0].sock.getsockname()
     with socket.create_connection(('localhost', port)) as client1:
         client1.sendall(REQUEST)
-        time.sleep(0.1)
+        time.sleep(0.01)
         client1.close()
     assert server.hardware.nb_requests == 1
     with socket.create_connection(('localhost', port)) as client2:
