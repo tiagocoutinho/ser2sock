@@ -130,7 +130,6 @@ def make_bridge(config, server):
 
 class Server:
 
-    trigger_message = b'trigger'
     shutdown_message = b'shutdown'
 
     def __init__(self, config):
@@ -169,15 +168,10 @@ class Server:
         self._csock.close()
         self._csock = None
 
-    def _trigger(self):
-        self._ssock.sendall(b'trigger')
-
     def _on_internal_event(self, fd):
         data = fd.recv(4096)
         if data == self.shutdown_message:
             self.run_flag = False
-        elif data == self.trigger_message:
-            pass
 
     def add_reader(self, reader, cb):
         self.selector.register(reader, selectors.EVENT_READ, cb)
