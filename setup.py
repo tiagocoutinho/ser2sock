@@ -5,6 +5,9 @@
 import sys
 from setuptools import setup, find_packages
 
+requires = [
+    'pyserial',
+]
 
 TESTING = any(x in sys.argv for x in ["test", "pytest"])
 
@@ -41,7 +44,10 @@ setup(
     long_description_content_type="text/markdown",
     keywords="serial line, tcp, bridge, socket, server",
     packages=find_packages(),
-    requires=['pyserial'],
+    install_requires=requires,
+    extras_require={
+        ':python_version < "3"': ['selectors2']
+    },
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
