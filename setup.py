@@ -46,7 +46,8 @@ setup(
     packages=find_packages(),
     install_requires=requires,
     extras_require={
-        ':python_version < "3"': ['selectors2']
+        ':python_version < "3"': ['selectors2'],
+        'web': ['bottle']  # < 0.13 if python 2.6
     },
     setup_requires=setup_requirements,
     test_suite="tests",

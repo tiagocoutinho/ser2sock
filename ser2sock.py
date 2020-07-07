@@ -14,6 +14,9 @@ if PY2:
 else:
     import selectors
 
+import serial
+
+
 __version__ = "3.0.0"
 
 IPTOS_NORMAL = 0x0
@@ -26,19 +29,19 @@ IPTOS_MINCOST = 0x02
 def create_server(
     address, reuse_addr=True, no_delay=True, tos=IPTOS_LOWDELAY, listen=1):
     server = socket.socket()
+    host, port = _tcp_host_port(address)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 if reuse_addr else 0)
     if hasattr(socket, "TCP_NODELAY") and no_delay:
         server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     if hasattr(socket, "IP_TOS"):
         server.setsockopt(socket.SOL_IP, socket.IP_TOS, tos)
-    server.bind(address)
+    server.bind((host, port))
     server.listen(listen)
     server.setblocking(False)
     return server
 
 
 def create_serial(address, **kwargs):
-    import serial
     ser = getattr(serial, 'serial_for_url', serial.Serial)
     return ser(address, **kwargs)
 
@@ -140,11 +143,6 @@ class Bridge:
 
 
 def make_bridge(config, server):
-    if isinstance(config, (tuple, list)):
-        a, b = config
-        serial, tcp = (a, b) if a.pop('__kind__') == 'serial' else (b, a)
-        b.pop('__kind__')
-        config = dict(serial=serial, tcp=tcp)
     return Bridge(config, server)
 
 
@@ -219,18 +217,25 @@ class Server:
         return self.selector.get_map()
 
 
-def tcp(**kwargs):
+def _tcp(**kwargs):
     kwargs['__kind__'] = 'tcp'
     return kwargs
 
 
-def serial(**kwargs):
+def _serial(**kwargs):
     kwargs['__kind__'] = 'serial'
     return kwargs
 
 
+def _tcp_host_port(addr):
+    if isinstance(addr, str):
+        host, port = addr.rsplit(":", 1)
+        addr = "0" if not host else host, int(port)
+    return addr
+
+
 def load_config(filename):
-    glob = dict(serial=serial, tcp=tcp)
+    glob = dict(serial=_serial, tcp=_tcp)
     full = os.path.abspath(filename)
     path, fname = os.path.split(filename)
     mod_name, _ = os.path.splitext(fname)
@@ -239,7 +244,51 @@ def load_config(filename):
         config = runpy.run_module(mod_name, glob)
     finally:
         sys.path.pop(0)
+
+    def tcp_address(addr):
+        if isinstance(addr, str):
+            host, port = addr.rsplit(":", 1)
+            addr = "0" if not host else host, port
+        return "{}:{}".format(*addr)
+
+    bridges = []
+    for bridge in config.get('bridges', ()):
+        if isinstance(bridge, (tuple, list)):
+            a, b = bridge
+            serial, tcp = (a, b) if a.pop('__kind__') == 'serial' else (b, a)
+            b.pop('__kind__')
+            bridge = dict(serial=serial, tcp=tcp)
+        bridge['tcp']['address'] = tcp_address(tcp['address'])
+        bridges.append(bridge)
+    config['bridges'] = bridges
+    if 'web' in config:
+        config['web'] = tcp_address(config['web'])
     return config
+
+
+def web_run(server, config):
+    from wsgiref.simple_server import make_server
+    import bottle
+    from bottle import ServerAdapter, get, route, run, template
+
+    bottle.TEMPLATE_PATH += [os.path.dirname(__file__)]
+
+    host, port = _tcp_host_port(config["web"])
+
+    @get("/")
+    def index():
+        return template('index.tpl', server=server, hostname=socket.gethostname(),
+                        baudrates=serial.Serial.BAUDRATES)
+
+    class WebServer(ServerAdapter):
+
+        def run(self, app):  # pragma: no cover
+            web_server = make_server(self.host, self.port, app)
+            web_server.socket.setblocking(False)
+            server.add_reader(web_server.socket, lambda sock: web_server.handle_request())
+            server.run()
+
+    run(server=WebServer(host, port))
 
 
 SERVER = None
@@ -251,7 +300,10 @@ def run(options):
     try:
         with Server(config) as server:
             SERVER = server
-            server.run()
+            if 'web' in config:
+                web_run(server, config)
+            else:
+                server.run()
     except KeyboardInterrupt:  # pragma: no cover
         logging.info('Interrupted. Bailing out...')
     finally:
