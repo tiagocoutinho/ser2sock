@@ -317,7 +317,7 @@ def _to_tcp_address(addr):
     if isinstance(addr, str):
         host, port = addr.rsplit(":", 1)
         addr = "0" if not host else host, port
-    return "{}:{}".format(*addr)
+    return "{0}:{1}".format(*addr)
 
 
 def _to_tcp(cfg):
@@ -376,7 +376,7 @@ def web_run(server, config):
         for key, value in form.items():
             domain, name, index = key.split("-")
             index = int(index)
-            if name in {"baudrate", "bytesize"}:
+            if name in ("baudrate", "bytesize"):
                 value = int(value)
             if name == "stopbits":
                 try:
