@@ -163,7 +163,8 @@ class Bridge:
 
     def reconfig(self, config):
         if self.config == config:
-            logging.info('reconfig %s: no changes, so skip it', self.name())
+            name = self.config['serial']['port']
+            logging.info('reconfig %r: no changes, so skip it', name)
             return
         old_ser, new_ser = self.config['serial'], config['serial']
         if old_ser != new_ser:
