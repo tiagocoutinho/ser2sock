@@ -6,8 +6,7 @@ import socket
 import threading
 import urllib.request
 
-import ser2sock
-from ser2sock import Server, load_config
+import ser2sock.server
 
 import pytest
 
@@ -71,7 +70,7 @@ class Hardware:
 
 
 def _server(template, tmp_path):
-    assert ser2sock.SERVER is None
+    assert ser2sock.server.SERVER is None
 
     cfg_filename = tmp_path / 'config.py'
 
@@ -79,12 +78,12 @@ def _server(template, tmp_path):
         with open(cfg_filename, "w") as cfg_file:
             cfg_text = template.format(serial=hardware.serial_name)
             cfg_file.write(cfg_text)
-        th = threading.Thread(target=ser2sock.main, args=(['-c', cfg_filename],))
+        th = threading.Thread(target=ser2sock.server.main, args=(['-c', cfg_filename],))
         th.daemon = True
         th.start()
-        while ser2sock.SERVER is None:
+        while ser2sock.server.SERVER is None:
             time.sleep(0.01)
-        server = ser2sock.SERVER
+        server = ser2sock.server.SERVER
         server.thread = th
         server.hardware = hardware
         yield server
@@ -107,16 +106,16 @@ def web_server(tmp_path):
 
 @pytest.fixture
 def server_no_hw(tmp_path):
-    assert ser2sock.SERVER is None
+    assert ser2sock.server.SERVER is None
     cfg_filename = tmp_path / 'config_no_hw.py'
     with open(cfg_filename, "w") as cfg_file:
         cfg_file.write(CONFIG_TEMPLATE.format(serial='/dev/tty-void'))
 
-    th = threading.Thread(target=ser2sock.main, args=(['-c', cfg_filename],))
+    th = threading.Thread(target=ser2sock.server.main, args=(['-c', cfg_filename],))
     th.start()
-    while ser2sock.SERVER is None:
+    while ser2sock.server.SERVER is None:
         time.sleep(0.01)
-    server = ser2sock.SERVER
+    server = ser2sock.server.SERVER
     server.thread = th
     yield server
     server.stop()
@@ -125,11 +124,11 @@ def server_no_hw(tmp_path):
 
 
 def test_load_config():
-    config = load_config("config_one.py")
+    config = ser2sock.server.load_config("config_one.py")
     bridges = [
         {
-            'serial': dict(ser2sock.SERIAL_DEFAULTS, port="/dev/ttyS0"),
-            'tcp': dict(ser2sock.TCP_DEFAULTS, address="0:0")
+            'serial': dict(ser2sock.server.SERIAL_DEFAULTS, port="/dev/ttyS0"),
+            'tcp': dict(ser2sock.server.TCP_DEFAULTS, address="0:0")
         }
     ]
     assert config["bridges"] == bridges
@@ -192,7 +191,7 @@ def test_server_no_client(server):
 
 def test_server_missing_argument():
     with pytest.raises(SystemExit) as error:
-        ser2sock.main([])
+        ser2sock.server.main([])
     assert error.value.code == 2
 
 

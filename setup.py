@@ -38,11 +38,11 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    description="serial to tcp bridge",
+    description="serial to socket bridge",
     license="GPLv3+",
     long_description=description,
     long_description_content_type="text/markdown",
-    keywords="serial line, tcp, bridge, socket, server",
+    keywords="serial line, tcp, udp, bridge, socket, server",
     packages=find_packages(),
     install_requires=requires,
     extras_require={
@@ -52,9 +52,13 @@ setup(
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
+    include_package_data=True,
+    package_data={
+        'ser2sock': ['*.tpl'],
+    },
     entry_points={
         'console_scripts': [
-            'ser2sock = ser2sock:main',
+            'ser2sock = ser2sock.server:main',
         ],
     },
     url="https://github.com/tiagooutinho/ser2sock/",
