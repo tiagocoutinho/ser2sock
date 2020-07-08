@@ -17,7 +17,7 @@ if TESTING:
         print("testing ser2sock needs python >= 3.7")
         exit(1)
     setup_requirements += ["pytest-runner"]
-test_requirements = ["pytest", "pytest-cov", "pytest-asyncio"]
+test_requirements = ["pytest", "pytest-cov"]
 
 with open("README.md") as f:
     description = f.read()
