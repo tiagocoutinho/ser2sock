@@ -37,7 +37,8 @@ def setsockopt(sock, reuse_addr=None, no_delay=None, tos=None):
 
 
 def create_server(
-    address, reuse_addr=True, no_delay=True, tos=IPTOS_LOWDELAY, listen=1):
+    address, reuse_addr=True, no_delay=True, tos=IPTOS_LOWDELAY, listen=1
+):
     server = socket.socket()
     host, port = _tcp_host_port(address)
     setsockopt(server, reuse_addr=reuse_addr, no_delay=no_delay, tos=tos)
@@ -49,14 +50,13 @@ def create_server(
 
 def create_serial(config):
     config = dict(config)
-    port = config.pop('port')
+    port = config.pop("port")
     ser = serial.Serial(**config)
     ser.port = port
     return ser
 
 
 class Bridge:
-
     def __init__(self, config, server):
         self.config = config
         self.server = server
@@ -65,7 +65,7 @@ class Bridge:
         self.client_bytes = 0
         self.client_ts = None
         self.client_nb = 0
-        self.serial = create_serial(config['serial'])
+        self.serial = create_serial(config["serial"])
         self.serial_bytes = 0
         self.ensure_server()
 
@@ -77,7 +77,7 @@ class Bridge:
 
     def ensure_server(self):
         if self.sock is None:
-            self.sock = create_server(**self.config['tcp'])
+            self.sock = create_server(**self.config["tcp"])
             self.server.add_reader(self.sock, self.accept)
         return self.sock
 
@@ -102,18 +102,18 @@ class Bridge:
         try:
             self._tcp_to_serial()
         except Exception as error:
-            logging.error('error tcp -> serial: %r', error)
+            logging.error("error tcp -> serial: %r", error)
             self.close_serial()
             self.close_client()
 
     def _tcp_to_serial(self):
         data = self.client.recv(1024)
         if data:
-            logging.debug('tcp -> serial: %r', data)
+            logging.debug("tcp -> serial: %r", data)
             self.serial.write(data)
             self.client_bytes += len(data)
         else:
-            logging.info('connection closed')
+            logging.info("connection closed")
             self.close_serial()
             self.close_client()
 
@@ -121,7 +121,7 @@ class Bridge:
         try:
             self._serial_to_tcp()
         except Exception as error:
-            logging.error('error reading from serial %r', error)
+            logging.error("error reading from serial %r", error)
             self.close_client()
             self.close_serial()
             return
@@ -129,9 +129,9 @@ class Bridge:
     def _serial_to_tcp(self):
         data = self.serial.read(self.serial.inWaiting())
         if self.client is None:
-            logging.info('serial data discarded (no client): %r', data)
+            logging.info("serial data discarded (no client): %r", data)
         else:
-            logging.debug('serial -> tcp: %r', data)
+            logging.debug("serial -> tcp: %r", data)
             self.client.sendall(data)
             self.serial_bytes += len(data)
 
@@ -141,51 +141,56 @@ class Bridge:
         self.close_server()
 
     def accept(self):
-        opts = self.config['tcp']
+        opts = self.config["tcp"]
         client, addr = self.sock.accept()
-        setsockopt(client, no_delay=opts['no_delay'], tos=opts['tos'])
+        setsockopt(client, no_delay=opts["no_delay"], tos=opts["tos"])
         self.client_nb += 1
         self.client_ts = datetime.datetime.now()
         if self.client is None:
-            logging.info('new connection from %r', addr)
+            logging.info("new connection from %r", addr)
             try:
                 serial = self.ensure_serial()
             except Exception as error:
-                logging.error('error openning serial port %r', error)
+                logging.error("error openning serial port %r", error)
                 client.close()
                 return
             self.client = client
             self.client.setblocking(False)
             self.server.add_reader(client, self.tcp_to_serial)
         else:
-            logging.info('disconnect client %r (already connected)', addr)
+            logging.info("disconnect client %r (already connected)", addr)
             client.close()
 
     def reconfig(self, config):
         if self.config == config:
-            name = self.config['serial']['port']
-            logging.info('reconfig %r: no changes, so skip it', name)
+            name = self.config["serial"]["port"]
+            logging.info("reconfig %r: no changes, so skip it", name)
             return
-        old_ser, new_ser = self.config['serial'], config['serial']
+        old_ser, new_ser = self.config["serial"], config["serial"]
         if old_ser != new_ser:
-            if old_ser['port'] != new_ser['port']:
+            if old_ser["port"] != new_ser["port"]:
                 self.close_serial()
             for key, value in new_ser.items():
                 old_value = old_ser[key]
                 if value != old_value:
-                    logging.info('setting %r %r from %r to %r', old_ser['port'],
-                                 key, old_value, value)
+                    logging.info(
+                        "setting %r %r from %r to %r",
+                        old_ser["port"],
+                        key,
+                        old_value,
+                        value,
+                    )
                     setattr(self.serial, key, value)
-        old_tcp, new_tcp = self.config['tcp'], config['tcp']
+        old_tcp, new_tcp = self.config["tcp"], config["tcp"]
         if old_tcp != new_tcp:
-            if old_tcp['address'] != new_tcp['address']:
+            if old_tcp["address"] != new_tcp["address"]:
                 self.close_client()
                 self.close_server()
                 self.config = config
                 self.ensure_server()
             else:
                 # other tcp options changed
-                opts = dict(no_delay=new_tcp['no_delay'], tos=new_tcp['tos'])
+                opts = dict(no_delay=new_tcp["no_delay"], tos=new_tcp["tos"])
                 if self.client:
                     setsockopt(self.client, **opts)
                 if self.server:
@@ -199,18 +204,18 @@ def make_bridge(config, server):
 
 class Server:
 
-    shutdown_message = b'shutdown'
+    shutdown_message = b"shutdown"
 
     def __init__(self, config):
         self.config = config
         self.selector = selectors.DefaultSelector()
 
     def __enter__(self):
-        logging.info('Bootstraping bridges...')
+        logging.info("Bootstraping bridges...")
         self._make_self_channel()
         self._make_bridges()
         self.run_flag = True
-        logging.info('Ready to accept requests!')
+        logging.info("Ready to accept requests!")
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -223,10 +228,7 @@ class Server:
         self.selector.close()
 
     def _make_bridges(self):
-        self.bridges = [
-            make_bridge(config, self)
-            for config in self.config['bridges']
-        ]
+        self.bridges = [make_bridge(config, self) for config in self.config["bridges"]]
 
     def _make_self_channel(self):
         self._ssock, self._csock = socket.socketpair()
@@ -270,17 +272,17 @@ class Server:
             self._csock.sendall(self.shutdown_message)
 
     def reconfig(self, config):
-        for bridge, config in zip(self.bridges, config['bridges']):
+        for bridge, config in zip(self.bridges, config["bridges"]):
             bridge.reconfig(config)
 
 
 def _tcp(**kwargs):
-    kwargs['__kind__'] = 'tcp'
+    kwargs["__kind__"] = "tcp"
     return kwargs
 
 
 def _serial(**kwargs):
-    kwargs['__kind__'] = 'serial'
+    kwargs["__kind__"] = "serial"
     return kwargs
 
 
@@ -292,7 +294,7 @@ def _tcp_host_port(addr):
 
 
 def _human_size(n):
-    for i in ' kMGTPEZY':
+    for i in " kMGTPEZY":
         if n / 1000 < 1:
             break
         n /= 1000
@@ -300,19 +302,20 @@ def _human_size(n):
 
 
 TCP_DEFAULTS = {
-    'reuse_addr': True,
-    'no_delay': True,
-    'tos': IPTOS_LOWDELAY,
-    'listen': 1
+    "reuse_addr": True,
+    "no_delay": True,
+    "tos": IPTOS_LOWDELAY,
+    "listen": 1,
 }
 
 
 SERIAL_DEFAULTS = {
-    'baudrate': 9600,
-    'bytesize': serial.EIGHTBITS,
-    'parity': serial.PARITY_NONE,
-    'stopbits': serial.STOPBITS_ONE
+    "baudrate": 9600,
+    "bytesize": serial.EIGHTBITS,
+    "parity": serial.PARITY_NONE,
+    "stopbits": serial.STOPBITS_ONE,
 }
+
 
 def _to_tcp_address(addr):
     if isinstance(addr, str):
@@ -323,7 +326,7 @@ def _to_tcp_address(addr):
 
 def _to_tcp(cfg):
     result = dict(TCP_DEFAULTS, **cfg)
-    result['address'] = _to_tcp_address(cfg['address'])
+    result["address"] = _to_tcp_address(cfg["address"])
     return result
 
 
@@ -334,18 +337,18 @@ def _to_serial(cfg):
 def _to_bridge(cfg):
     if isinstance(cfg, (tuple, list)):
         a, b = cfg
-        serial, tcp = (a, b) if a.pop('__kind__') == 'serial' else (b, a)
-        b.pop('__kind__')
+        serial, tcp = (a, b) if a.pop("__kind__") == "serial" else (b, a)
+        b.pop("__kind__")
         cfg = dict(serial=serial, tcp=tcp)
-    cfg['tcp'] = _to_tcp(cfg['tcp'])
-    cfg['serial'] = _to_serial(cfg['serial'])
+    cfg["tcp"] = _to_tcp(cfg["tcp"])
+    cfg["serial"] = _to_serial(cfg["serial"])
     return cfg
 
 
 def sanitize_config(config):
     return dict(
-        bridges=[_to_bridge(bridge) for bridge in config.get('bridges', ())],
-        web=_to_tcp_address(config['web']) if 'web' in config else None
+        bridges=[_to_bridge(bridge) for bridge in config.get("bridges", ())],
+        web=_to_tcp_address(config["web"]) if "web" in config else None,
     )
 
 
@@ -395,8 +398,11 @@ def web_run(server, config):
     @app.get("/")
     def index():
         return bottle.template(
-            'index.tpl', server=server, hostname=socket.gethostname(),
-            baudrates=serial.Serial.BAUDRATES, human_size=_human_size
+            "index.tpl",
+            server=server,
+            hostname=socket.gethostname(),
+            baudrates=serial.Serial.BAUDRATES,
+            human_size=_human_size,
         )
 
     @app.post("/")
@@ -405,14 +411,15 @@ def web_run(server, config):
         server.reconfig(new_config)
         return bottle.redirect("/")
 
-    @app.route('/static/<filename>')
+    @app.route("/static/<filename>")
     def static(filename):
         return bottle.static_file(filename, root=this_dir)
 
     class WebServer(bottle.ServerAdapter):
-
         def run(self, app):  # pragma: no cover
-            self.web_server = wsgiref.simple_server.make_server(self.host, self.port, app)
+            self.web_server = wsgiref.simple_server.make_server(
+                self.host, self.port, app
+            )
             sock = self.web_server.socket
             sock.setblocking(False)
             server.add_reader(sock, self.web_server.handle_request)
@@ -432,22 +439,22 @@ def run(options):
     try:
         with Server(config) as server:
             SERVER = server
-            if config['web']:
+            if config["web"]:
                 web_run(server, config)
             else:
                 server.run()
     except KeyboardInterrupt:  # pragma: no cover
-        logging.info('Interrupted. Bailing out...')
+        logging.info("Interrupted. Bailing out...")
     finally:
         SERVER = None
 
 
 def main(args=None):
     parser = optparse.OptionParser()
-    parser.add_option('-c', '--config', help='config file name')
+    parser.add_option("-c", "--config", help="config file name")
     options, args = parser.parse_args(args)
     if options.config is None:
-        parser.error('Missing configuration file argument (-c/--config)')
+        parser.error("Missing configuration file argument (-c/--config)")
     run(options)
 
 
