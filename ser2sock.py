@@ -18,7 +18,7 @@ else:
 import serial
 
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"
 
 IPTOS_NORMAL = 0x0
 IPTOS_LOWDELAY = 0x10
