@@ -1,3 +1,3 @@
 bridges = [
-    [serial(address="/dev/ttyS0"), tcp(address=("0", 0))]
+    [serial(port="/dev/ttyS0"), tcp(address=":0")]
 ]
