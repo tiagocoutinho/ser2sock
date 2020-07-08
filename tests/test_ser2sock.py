@@ -4,9 +4,10 @@ import time
 import errno
 import socket
 import threading
+import urllib.request
 
 import ser2sock
-from ser2sock import Server, load_config, main
+from ser2sock import Server, load_config
 
 import pytest
 
@@ -39,8 +40,6 @@ class Hardware:
     def __enter__(self):
         self.master_fd, self.slave_fd = os.openpty()
         self.master = io.open(self.master_fd, "rb")
-        self.nb_requests = 0
-        self.server = None
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -50,16 +49,10 @@ class Hardware:
     def serial_name(self):
         return os.ttyname(self.slave_fd)
 
-    def on_request(self):
-        self.nb_requests += 1
-        request = self.master.readline()
-        reply = self.commands.get(request)
-        if reply:
-            time.sleep(0.01)
-            os.write(self.master_fd, reply)
-
-    def register(self, server):
-        server.add_reader(self.master_fd, self.on_request)
+    def handle_request(self):
+        data = self.master.readline()
+        assert data == REQUEST
+        os.write(self.master_fd, REPLY)
 
     def close(self):
         if self.master_fd is not None:
@@ -67,6 +60,7 @@ class Hardware:
                 os.close(self.master_fd)
             except OSError:
                 pass
+            self.master = None
             self.master_fd = None
         if self.slave_fd is not None:
             try:
@@ -78,10 +72,13 @@ class Hardware:
 
 def _server(template, tmp_path):
     assert ser2sock.SERVER is None
+
+    cfg_filename = tmp_path / 'config.py'
+
     with Hardware() as hardware:
-        cfg_filename = tmp_path / 'config.py'
         with open(cfg_filename, "w") as cfg_file:
-            cfg_file.write(template.format(serial=hardware.serial_name))
+            cfg_text = template.format(serial=hardware.serial_name)
+            cfg_file.write(cfg_text)
         th = threading.Thread(target=ser2sock.main, args=(['-c', cfg_filename],))
         th.daemon = True
         th.start()
@@ -90,7 +87,6 @@ def _server(template, tmp_path):
         server = ser2sock.SERVER
         server.thread = th
         server.hardware = hardware
-        hardware.register(server)
         yield server
         server.stop()
         th.join()
@@ -143,17 +139,20 @@ def test_web_server(web_server):
     _, port = web_server.bridges[0].sock.getsockname()
     with socket.create_connection(('localhost', port)) as client:
         client.sendall(REQUEST)
+        web_server.hardware.handle_request()
         assert client.recv(1024) == REPLY
-        assert web_server.hardware.nb_requests == 1
     _, web_port = web_server.web_server.web_server.socket.getsockname()
-    
+    with urllib.request.urlopen('http://localhost:{}/'.format(web_port)) as f:
+        data = f.read().decode()
+        assert data.startswith('<!doctype')
+        assert web_server.hardware.serial_name in data
 
 def test_server(server):
     _, port = server.bridges[0].sock.getsockname()
     with socket.create_connection(('localhost', port)) as client:
         client.sendall(REQUEST)
+        server.hardware.handle_request()
         assert client.recv(1024) == REPLY
-        assert server.hardware.nb_requests == 1
 
 
 def test_server_no_serial(server_no_hw):
@@ -170,24 +169,25 @@ def test_server_serial_close_after_success(server):
     with pytest.raises(ConnectionResetError) as error:
         with socket.create_connection(('localhost', port)) as client:
             client.sendall(REQUEST)
+            server.hardware.handle_request()
             assert client.recv(1024) == REPLY
-            assert server.hardware.nb_requests == 1
             server.hardware.close()
             client.sendall(b"*IDN?\n")
-            client.recv(1024)
+            assert not client.recv(1024)
+            raise ConnectionResetError()
 
 
 def test_server_no_client(server):
     _, port = server.bridges[0].sock.getsockname()
     with socket.create_connection(('localhost', port)) as client1:
         client1.sendall(REQUEST)
+        server.hardware.handle_request()
+        #client1.close()
         time.sleep(0.01)
-        client1.close()
-    assert server.hardware.nb_requests == 1
     with socket.create_connection(('localhost', port)) as client2:
         client2.sendall(REQUEST)
+        server.hardware.handle_request()
         assert client2.recv(1024) == REPLY
-    assert server.hardware.nb_requests == 2
 
 
 def test_server_missing_argument():
@@ -200,18 +200,18 @@ def test_2_clients_to_1_serial(server):
     _, port = server.bridges[0].sock.getsockname()
     with socket.create_connection(('localhost', port)) as client1:
         client1.sendall(REQUEST)
+        server.hardware.handle_request()
         assert client1.recv(1024) == REPLY
-        assert server.hardware.nb_requests == 1
 
         with pytest.raises(ConnectionResetError) as error:
             with socket.create_connection(('localhost', port)) as client2:
                 client2.sendall(REQUEST)
                 client2.recv(1024)
         assert error.value.errno == errno.ECONNRESET
-        assert server.hardware.nb_requests == 1
 
     with socket.create_connection(('localhost', port)) as client3:
         client3.sendall(REQUEST)
+        server.hardware.handle_request()
         assert client3.recv(1024) == REPLY
-        assert server.hardware.nb_requests == 2
+
 
