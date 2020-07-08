@@ -366,7 +366,9 @@ def web_run(server, config):
     import bottle
     import wsgiref.simple_server
 
-    bottle.TEMPLATE_PATH += [os.path.dirname(__file__)]
+    this_dir = os.path.dirname(__file__)
+
+    bottle.TEMPLATE_PATH += [this_dir]
 
     host, port = _tcp_host_port(config["web"])
 
@@ -402,6 +404,10 @@ def web_run(server, config):
         new_config = form_to_config(bottle.request.forms)
         server.reconfig(new_config)
         return bottle.redirect("/")
+
+    @app.route('/static/<filename>')
+    def static(filename):
+        return bottle.static_file(filename, root=this_dir)
 
     class WebServer(bottle.ServerAdapter):
 
