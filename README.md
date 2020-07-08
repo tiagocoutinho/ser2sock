@@ -83,4 +83,34 @@ bridges = [
 
 ```
 
+## Web UI
+
+The active configuration can be changed online through a web UI.
+
+To enable web you need to install the extra package:
+
+```console
+$ pip install ser2sock[web]
+```
+
+...and enable the web app in the configuration with:
+
+```python
+bridges = [...]
+
+web = ':8000'
+```
+
+ser2sock should now be visible [here](http://localhost:8000).
+
+You should see something like this:
+
+![web screenshot](web_screenshot.png)
+
+Note that changes made with the web interface only affect the
+active ser2sock instance and never the original configuration file.
+
+
+That's all folks!
+
 [pypi]: https://img.shields.io/pypi/pyversions/ser2sock.svg
