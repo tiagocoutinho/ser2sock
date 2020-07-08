@@ -110,6 +110,64 @@ You should see something like this:
 Note that changes made with the web interface only affect the
 active ser2sock instance and never the original configuration file.
 
+## Tests
+
+Tests should be performed within a python 3.5 or higher environment.
+
+```console
+$ python setup.py test
+
+running pytest
+Searching for pytest-asyncio
+Best match: pytest-asyncio 0.14.0
+Processing pytest_asyncio-0.14.0-py3.7.egg
+
+Using /home/tcoutinho/workspace/ser2sock/.eggs/pytest_asyncio-0.14.0-py3.7.egg
+Searching for pytest-cov
+Best match: pytest-cov 2.10.0
+Processing pytest_cov-2.10.0-py3.7.egg
+
+Using /home/tcoutinho/workspace/ser2sock/.eggs/pytest_cov-2.10.0-py3.7.egg
+running egg_info
+writing ser2sock.egg-info/PKG-INFO
+writing dependency_links to ser2sock.egg-info/dependency_links.txt
+writing entry points to ser2sock.egg-info/entry_points.txt
+writing requirements to ser2sock.egg-info/requires.txt
+writing top-level names to ser2sock.egg-info/top_level.txt
+reading manifest file 'ser2sock.egg-info/SOURCES.txt'
+writing manifest file 'ser2sock.egg-info/SOURCES.txt'
+running build_ext
+==================================== test session starts =====================================
+platform linux -- Python 3.7.7, pytest-5.4.3, py-1.9.0, pluggy-0.13.1 -- /home/tcoutinho/miniconda/envs/py37/bin/python
+cachedir: .pytest_cache
+rootdir: /home/tcoutinho/workspace/ser2sock, inifile: setup.cfg
+plugins: cov-2.10.0, asyncio-0.14.0
+collected 8 items
+
+tests/test_ser2sock.py::test_load_config PASSED                                        [ 12%]
+tests/test_ser2sock.py::test_web_server PASSED                                         [ 25%]
+tests/test_ser2sock.py::test_server PASSED                                             [ 37%]
+tests/test_ser2sock.py::test_server_no_serial PASSED                                   [ 50%]
+tests/test_ser2sock.py::test_server_serial_close_after_success PASSED                  [ 62%]
+tests/test_ser2sock.py::test_server_no_client PASSED                                   [ 75%]
+tests/test_ser2sock.py::test_server_missing_argument PASSED                            [ 87%]
+tests/test_ser2sock.py::test_2_clients_to_1_serial PASSED                              [100%]
+
+----------- coverage: platform linux, python 3.7.7-final-0 -----------
+Name                   Stmts   Miss  Cover
+------------------------------------------
+ser2sock/__init__.py       1      0   100%
+ser2sock/server.py       321     56    83%
+------------------------------------------
+TOTAL                    322     56    83%
+Coverage HTML written to dir htmlcov
+
+
+================================== slowest 2 test durations ==================================
+0.02s call     tests/test_ser2sock.py::test_server_no_client
+0.02s setup    tests/test_ser2sock.py::test_web_server
+===================================== 8 passed in 0.30s ======================================
+```
 
 That's all folks!
 
