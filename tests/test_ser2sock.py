@@ -7,6 +7,7 @@ import threading
 import urllib.request
 
 import ser2sock.server
+import ser2sock.config
 
 import pytest
 
@@ -127,8 +128,8 @@ def test_load_config():
     config = ser2sock.server.load_config("config_one.py")
     bridges = [
         {
-            'serial': dict(ser2sock.server.SERIAL_DEFAULTS, port="/dev/ttyS0"),
-            'tcp': dict(ser2sock.server.TCP_DEFAULTS, address="0:0")
+            'serial': dict(ser2sock.config.SERIAL_DEFAULTS, port="/dev/ttyS0"),
+            'tcp': dict(ser2sock.config.TCP_DEFAULTS, address="0:0")
         }
     ]
     assert config["bridges"] == bridges
