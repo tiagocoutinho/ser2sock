@@ -17,7 +17,7 @@ pip install ser2sock
 ## Usage
 
 ```console
-ser2net -c <configuration file>
+ser2sock -c <configuration file>
 ```
 
 ### Configuration
