@@ -34,17 +34,17 @@ Example:
 
 bridges = [
     {
-        'serial': {'address': '/dev/ttyS0'},
+        'serial': {'port': '/dev/ttyS0'},
         'tcp': {'address': ("0", 18500)}
     },
     {
-        'serial': {'address': '/dev/ttyS1', 'baudrate': 19200},
+        'serial': {'port': '/dev/ttyS1', 'baudrate': 19200},
         'tcp': {'address': ("0", 18501), 'no_delay': False}
     }
 ]
 ```
 
-* `serial`: `address` mandatory. Supports any keyword supported by
+* `serial`: `port` mandatory. Supports any keyword supported by
   `serial.serial_for_url` (or `serial.Serial` if `serial_for_url` does not
   exist
 * `tcp`: `address` mandatory (must be a pair bind host and port).
@@ -58,8 +58,8 @@ Here is the equivalent above config using helpers:
 ```python
 
 bridges = [
-    [serial(address="/dev/ttyS0"), tcp(address=("0", 18500))],
-    [serial(address="/dev/ttyS1", baudrate=19200),
+    [serial(port="/dev/ttyS0"), tcp(address=("0", 18500))],
+    [serial(port="/dev/ttyS1", baudrate=19200),
      tcp(address=("0", 18501), no_delay=False)],
 ]
 ```
@@ -75,8 +75,8 @@ logging.basicConfig(
 )
 
 bridges = [
-    [serial(address="/dev/ttyS0"), tcp(address=("0", 18500))],
-    [serial(address="/dev/ttyS1", baudrate=19200),
+    [serial(port="/dev/ttyS0"), tcp(address=("0", 18500))],
+    [serial(port="/dev/ttyS1", baudrate=19200),
      tcp(address=("0", 18501), no_delay=False)],
 ]
 
