@@ -61,7 +61,7 @@ setup(
             'ser2sock = ser2sock.server:main',
         ],
     },
-    url="https://github.com/tiagooutinho/ser2sock/",
+    url="https://github.com/tiagocoutinho/ser2sock/",
     project_urls={
         "Documentation": "https://tiagocoutinho.github.io/ser2sock/",
         "Source": "https://github.com/tiagocoutinho/ser2sock/",
