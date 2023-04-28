@@ -70,7 +70,7 @@ setup(
         "Documentation": "https://tiagocoutinho.github.io/ser2sock/",
         "Source": "https://github.com/tiagocoutinho/ser2sock/",
     },
-    version="4.1.1",
+    version="4.1.2",
     python_requires=">=2.6",
     zip_safe=True
 )
